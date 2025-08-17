@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { auth, db } from '../firebase';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { addDoc, collection, getDocs } from 'firebase/firestore';
+import { useNavigate } from 'react-router-dom';
+import { addDoc, collection } from 'firebase/firestore';
 import Layout from '../components/Layout';
 import AnimeCard from '../components/AnimeCard';
 import TopAnimeCard from '../components/TopAnimeCard';
@@ -11,28 +11,24 @@ import JikanApiService from '../services/jikanApi';
 
 const Homepage = () => {
   const [animeList, setAnimeList] = useState([]);
-  const [visibleCount, setVisibleCount] = useState(18); // initial render count
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [animePage, setAnimePage] = useState(1); // track current page for fetching
-  const [seasonalPage, setSeasonalPage] = useState(1);
-  const [hasMoreAnime, setHasMoreAnime] = useState(true);
-  const scrollRef = useRef(null);
   const [topAnimeList, setTopAnimeList] = useState([]);
+  const [visibleCount, setVisibleCount] = useState(18);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [animePage, setAnimePage] = useState(1);
+  const [hasMoreAnime, setHasMoreAnime] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAnime, setSelectedAnime] = useState(null);
-
-  const [anime, setAnime] = useState('');
-  const [animeImage, setAnimeImage] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [cur, setCur] = useState(null);
+  const [anime, setAnime] = useState('');
+  const [animeImage, setAnimeImage] = useState('');
   const [status, setStatus] = useState('');
   const [epWatch, setEpWatch] = useState(0);
   const [score, setScore] = useState(0);
   const [start, setStart] = useState('');
   const [finish, setFinish] = useState('');
-
   const navigate = useNavigate();
-  const location = useLocation();
+  const scrollRef = useRef(null);
 
   const shuffleArray = (array) => {
     const shuffled = [...array];
@@ -43,86 +39,150 @@ const Homepage = () => {
     return shuffled;
   };
 
-  // Fetch random anime
+  // ---------- FETCH METHODS ----------
+
+  // Fetch top anime this season (sidebar)
+  const fetchTopAnimeThisSeason = async () => {
+    const cacheKey = 'topAnimeListCacheV1';
+    const ttlMs = 10 * 60 * 1000; // 10 minutes
+
+    // Try cache first
+    try {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed?.ts && Date.now() - parsed.ts < ttlMs && Array.isArray(parsed.items)) {
+          setTopAnimeList(parsed.items);
+          return;
+        }
+      }
+    } catch (_) {}
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const fetchWithRetries = async (url, retries = 2, delayMs = 700) => {
+      let attempt = 0;
+      while (attempt <= retries) {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          return Array.isArray(data?.data) ? data.data : [];
+        } catch (err) {
+          if (attempt === retries) return [];
+          await sleep(delayMs);
+          delayMs *= 2;
+          attempt++;
+        }
+      }
+      return [];
+    };
+
+    try {
+      // Try seasonal first, then fallback to yearly, then all-time
+      let items = await fetchWithRetries('https://api.jikan.moe/v4/seasons/now?limit=10');
+
+      if (!items || items.length === 0) {
+        const year = new Date().getFullYear();
+        items = await fetchWithRetries(`https://api.jikan.moe/v4/anime?start_date=${year}-01-01&end_date=${year}-12-31&order_by=score&sort=desc&limit=10`);
+      }
+
+      if (!items || items.length === 0) {
+        items = await fetchWithRetries('https://api.jikan.moe/v4/top/anime?limit=10');
+      }
+
+      const topSeasonAnime = items.map(JikanApiService.transformAnimeData);
+      setTopAnimeList(topSeasonAnime);
+
+      // Cache result
+      try {
+        sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), items: topSeasonAnime }));
+      } catch (_) {}
+    } catch (error) {
+      console.error('Error fetching top anime this season:', error);
+      setTopAnimeList([]);
+    }
+  };
+
+  // Fetch 12 recommended/popular anime first
+  const fetchRecommendedAnime = async () => {
+    try {
+      const response = await fetch('https://api.jikan.moe/v4/anime?limit=12');
+      const data = await response.json();
+      const recommended = data.data.map(JikanApiService.transformAnimeData);
+      setAnimeList(shuffleArray(recommended)); // <-- shuffle the order here
+    } catch (error) {
+      console.error('Error fetching recommended anime:', error);
+      setAnimeList([]);
+    }
+  };
+
+  // Fetch random anime (to append after recommended)
   const fetchRandomAnime = async () => {
     try {
-      const response = await fetch('https://api.jikan.moe/v4/random/anime');
-      const data = await response.json();
-      return JikanApiService.transformAnimeData(data.data);
-    } catch (error) {
-      console.error('Error fetching random anime:', error);
-      return null;
-    }
-  };
-
-  // Initial fetch
-  const fetchAnimeData = async () => {
-    setIsLoading(true);
-    try {
-      const [topAnime, seasonalAnime] = await Promise.all([
-        JikanApiService.getTopAnime(1),
-        JikanApiService.getSeasonalAnime(1)
-      ]);
-      
-      // Fetch 12 random anime in parallel for initial load
-      const randomAnimePromises = Array(16).fill().map(() => fetchRandomAnime());
-      const randomAnimeResults = await Promise.all(randomAnimePromises);
-      const validRandomAnime = randomAnimeResults.filter(anime => anime !== null);
-      
-      const transformedTopAnime = topAnime.map(JikanApiService.transformAnimeData);
-      const transformedSeasonalAnime = seasonalAnime.map(JikanApiService.transformAnimeData);
-      const allAnime = [...transformedTopAnime, ...transformedSeasonalAnime, ...validRandomAnime];
-      const uniqueAnime = Array.from(new Map(allAnime.map(a => [a.id, a])).values());
-      setAnimeList(uniqueAnime);
-      setTopAnimeList(transformedSeasonalAnime.slice(0, 15));
+      const randomAnimePromises = Array(12).fill().map(async () => {
+        const response = await fetch('https://api.jikan.moe/v4/random/anime');
+        const data = await response.json();
+        return JikanApiService.transformAnimeData(data.data);
+      });
+      const results = await Promise.all(randomAnimePromises);
+      const uniqueResults = Array.from(new Map(results.map(a => [a.id, a])).values());
+      setAnimeList(prev => [...prev, ...uniqueResults]);
       setAnimePage(2);
-      setSeasonalPage(2);
       setHasMoreAnime(true);
     } catch (error) {
-      console.error(error);
-      setTopAnimeList([]);
-      setAnimeList([]);
+      console.error('Error fetching random anime:', error);
       setHasMoreAnime(false);
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  // Infinite fetch more anime
+  // Fetch more anime for infinite scroll
   const fetchMoreAnime = async () => {
     if (!hasMoreAnime || isFetchingMore) return;
     setIsFetchingMore(true);
     try {
-      // Fetch next page of top and seasonal anime, plus random anime
-      const [topAnime, seasonalAnime] = await Promise.all([
-        JikanApiService.getTopAnime(25, animePage),
-        JikanApiService.getSeasonalAnime(seasonalPage)
-      ]);
-      
-      // Fetch 3 random anime for variety
-      const randomAnimePromises = Array(3).fill().map(() => fetchRandomAnime());
-      const randomAnimeResults = await Promise.all(randomAnimePromises);
-      const validRandomAnime = randomAnimeResults.filter(anime => anime !== null);
-
-      const transformedTopAnime = topAnime.map(JikanApiService.transformAnimeData);
-      const transformedSeasonalAnime = seasonalAnime.map(JikanApiService.transformAnimeData);
-      const allAnime = [...transformedTopAnime, ...transformedSeasonalAnime, ...validRandomAnime];
-      // Remove duplicates
-      const newUniqueAnime = allAnime.filter(a => !animeList.some(b => b.id === a.id));
-      if (newUniqueAnime.length === 0) {
+      const randomAnimePromises = Array(3).fill().map(async () => {
+        const response = await fetch('https://api.jikan.moe/v4/random/anime');
+        const data = await response.json();
+        return JikanApiService.transformAnimeData(data.data);
+      });
+      const results = await Promise.all(randomAnimePromises);
+      const newUnique = results.filter(a => !animeList.some(b => b.id === a.id));
+      if (newUnique.length === 0) {
         setHasMoreAnime(false);
       } else {
-        setAnimeList(prev => [...prev, ...newUniqueAnime]);
+        setAnimeList(prev => [...prev, ...newUnique]);
         setAnimePage(prev => prev + 1);
-        setSeasonalPage(prev => prev + 1);
       }
     } catch (error) {
+      console.error('Error fetching more anime:', error);
       setHasMoreAnime(false);
     } finally {
       setIsFetchingMore(false);
     }
   };
-  // Infinite scroll handler: fetch more anime when near bottom
+
+  // ---------- AUTH ----------
+  const collectionRef = useMemo(() => cur && collection(db, cur), [cur]);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(user => {
+      if (!user) navigate('/');
+      else setCur(user.uid);
+    });
+    return () => unsubscribe();
+  }, [navigate]);
+
+  // ---------- INITIAL FETCH ----------
+  useEffect(() => {
+    if (cur) {
+      setIsLoading(true);
+      // fetch top anime and recommended in parallel
+      Promise.all([fetchTopAnimeThisSeason(), fetchRecommendedAnime()])
+        .finally(() => setIsLoading(false));
+    }
+  }, [cur]);
+
+  // ---------- INFINITE SCROLL ----------
   useEffect(() => {
     const handleScroll = () => {
       if (isLoading || isFetchingMore) return;
@@ -130,7 +190,6 @@ const Homepage = () => {
       const viewportHeight = window.innerHeight;
       const fullHeight = document.body.offsetHeight;
       if (scrollY + viewportHeight >= fullHeight - 100) {
-        // Near bottom, fetch more anime
         fetchMoreAnime();
       }
     };
@@ -138,45 +197,39 @@ const Homepage = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [isLoading, isFetchingMore, animeList, hasMoreAnime]);
 
-  const collectionRef = useMemo(() => cur && collection(db, cur), [cur]);
-
+  // ---------- MODAL HANDLERS ----------
   const handleAddToList = (animeObj) => {
     setAnime(animeObj.title);
     setAnimeImage(animeObj.image);
     setShowAddModal(true);
   };
 
-  const handleAnimeSelect = (anime) => {
-    setSelectedAnime(anime);
-  };
-
-  // Listen for authentication state
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(user => {
-      if (!user) navigate('/'); // redirect if not logged in
-      else setCur(user.uid);     // set current user UID
-    });
-    return () => unsubscribe();
-  }, [navigate]);
-
-  // Fetch anime data only after user is authenticated
-  useEffect(() => {
-    if (cur) fetchAnimeData();
-  }, [cur]);
-
   const addAnime = async () => {
     try {
-      if (!auth.currentUser) return;
-      // Find the selected anime object from animeList
+      if (!auth.currentUser || !cur) return;
+
+      const collectionRef = collection(db, cur); // <-- ensure this exists here
+
       const animeObj = animeList.find(a => a.title === anime);
       const image = animeObj ? animeObj.image : (selectedAnime && selectedAnime.image) || '';
-  await addDoc(collectionRef, { title: anime, status: status || 'Watching', epWatch, score, start, finish, image });
+
+      await addDoc(collectionRef, {
+        title: anime,
+        status: status || 'Watching',
+        epWatch,
+        score,
+        start,
+        finish,
+        image
+      });
+
       setShowAddModal(false);
       setStatus(''); setEpWatch(0); setScore(0); setStart(''); setFinish('');
     } catch (error) {
-      console.error(error);
+      console.error('Error adding anime:', error);
     }
   };
+
 
   const topAnimeData = topAnimeList.map((anime, index) => ({
     id: anime.id,
@@ -194,18 +247,21 @@ const Homepage = () => {
       index === 2 ? 'text-green-300' : 'text-gray-400'
   }));
 
+  // ---------- RENDER ----------
   return (
     <>
       <Layout>
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold text-white mb-3">Anime Tracker</h1>
-          <p className="text-gray-300 max-w-2xl mx-auto mb-8">Discover and track your favorite anime series.</p>
+          <p className="text-gray-300 max-w-2xl mx-auto mb-8">
+            Discover and track your favorite anime series.
+          </p>
           <div className="flex justify-center mb-8">
-            <SearchBar onAnimeSelect={handleAnimeSelect} />
+            <SearchBar />
           </div>
         </div>
-
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+          {/* MAIN FEED */}
           <div className="xl:col-span-3">
             {isLoading ? (
               <div className="flex justify-center items-center h-64">
@@ -219,7 +275,7 @@ const Homepage = () => {
                     key={anime.id} 
                     anime={anime} 
                     onAddToList={handleAddToList} 
-                    onOpen={(anime) => setSelectedAnime(anime)} 
+                    onOpen={(anime) => navigate(`/anime/${anime.id}`)} 
                   />
                 ))}
                 {isFetchingMore && (
@@ -236,85 +292,25 @@ const Homepage = () => {
             )}
           </div>
 
+          {/* TOP ANIME SIDEBAR */}
           <div className="xl:col-span-1">
-            <div className="bg-[#161b22] rounded-2xl p-6 shadow-lg border border-[#39d353]/50">
-              <h2 className="text-xl font-bold text-[#39d353] mb-6 text-center">Top Anime This Season</h2>
-              {isLoading ? (
-                <div className="flex justify-center items-center h-32">
-                  <div className="spinner w-8 h-8 border-4 border-t-[#39d353] border-gray-600 rounded-full animate-spin"></div>
-                  <span className="ml-3 text-gray-300 text-sm">Loading...</span>
-                </div>
-              ) : topAnimeData.length > 0 ? (
-                <div className="space-y-3">
-                  {topAnimeData.map(anime => <TopAnimeCard key={anime.rank} anime={anime} />)}
-                </div>
-              ) : (
-                <div className="text-center text-gray-400 py-8">
-                  <p>No top anime available</p>
-                  <button onClick={fetchAnimeData} className="mt-2 text-[#39d353] hover:text-green-400 text-sm">Retry</button>
-                </div>
-              )}
+            <div className="bg-[#161b22] rounded-2xl p-6">
+              <h2 className="text-[20px] font-bold text-green-400 mb-4">Top Anime This Season</h2>
+              <ul className="space-y-4">
+                {topAnimeData.map(anime => (
+                  <TopAnimeCard key={anime.id} anime={anime} />
+                ))}
+              </ul>
             </div>
           </div>
         </div>
-
-        {selectedAnime && (
-          <div 
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
-            onClick={() => setSelectedAnime(null)}
-          >
-            <div 
-              className="bg-gray-900 text-white rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto p-6 relative shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                className="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl font-bold"
-                onClick={() => setSelectedAnime(null)}
-              >
-                ✕
-              </button>
-
-              <div className="flex flex-col md:flex-row gap-6">
-                <div className="flex-shrink-0 md:w-64">
-                  <img
-                    src={selectedAnime.image}
-                    alt={selectedAnime.title}
-                    className="w-full rounded-2xl shadow-lg"
-                  />
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-3xl font-bold mb-4">{selectedAnime.title}</h2>
-                  <p className="text-gray-300 mb-6">{selectedAnime.synopsis || 'No description available.'}</p>
-                  <div className="grid grid-cols-2 gap-2 text-sm text-gray-400 mb-4">
-                    <p><span className="text-green-400">Aired:</span> {selectedAnime.dateAired || 'Unknown'}</p>
-                    <p><span className="text-green-400">Episodes:</span> {selectedAnime.episodes || '?'}</p>
-                    <p><span className="text-green-400">Status:</span> {selectedAnime.status || 'Unknown'}</p>
-                    <p><span className="text-green-400">Type:</span> {selectedAnime.type || 'Unknown'}</p>
-                    {selectedAnime.genres && selectedAnime.genres.length > 0 && (
-                      <p className="col-span-2"><span className="text-green-400">Genres:</span> {selectedAnime.genres.join(', ')}</p>
-                    )}
-                  </div>
-
-                  <div className="mt-4 flex flex-col gap-3">
-                    <button
-                      onClick={() => navigate(`/anime/${selectedAnime.id}`)}
-                      className="bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg border-2 border-green-400 shadow-lg transition-colors duration-200"
-                    >
-                      Go to Details Page
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </Layout>
 
-      {/* Add Anime Modal */}
+      {/* ADD MODAL */}
       {showAddModal && (
         <Addpage
           anime={anime}
-          image={animeImage}
+          image={animeImage} 
           onClose={() => setShowAddModal(false)}
         />
       )}

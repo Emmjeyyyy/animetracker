@@ -5,20 +5,31 @@ const AnimeCard = ({ anime, onAddToList, onOpen, showAddButton = true, className
   const { title, image, score } = anime;
 
   return (
-    <div className={`group relative rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-800 to-gray-900 hover:shadow-green-500/20 transition-all duration-500 hover:scale-105 ${className} flex flex-col`}>
+    <div className={`group relative rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-800 to-gray-900 hover: transform-gpu will-change-transform duration-200 ease-out hover:scale-105 ${className} flex flex-col`}>
       
-      {/* Anime Cover */}
-      <div className="w-full h-80 md:h-80 lg:h-80 overflow-hidden rounded-2xl relative mt-4 flex justify-center items-center">
+      {/* Anime Cover with Blurred Background */}
+      <div className="w-[207px] h-[296px] mx-auto mt-4 relative rounded-2xl overflow-hidden flex justify-center items-center">
+        {/* Blurred background */}
         <img
           src={image}
           alt={title}
-          className="max-w-full max-h-full object-contain rounded-xl"
+          className="absolute inset-0 w-full h-full object-cover blur-[5px] scale-110"
           onError={(e) => {
-            e.target.src = 'https://via.placeholder.com/400x320/374151/9CA3AF?text=No+Image';
+            e.target.src = 'https://via.placeholder.com/207x296/374151/9CA3AF?text=No+Image';
+          }}
+        />
+        <div className="absolute inset-0 bg-black/50"></div>
+        {/* Actual cover */}
+        <img
+          src={image}
+          alt={title}
+          className="relative z-10 w-[207px] h-[296px] object-contain rounded-xl"
+          onError={(e) => {
+            e.target.src = 'https://via.placeholder.com/207x296/374151/9CA3AF?text=No+Image';
           }}
         />
         {/* Score Badge */}
-        <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-sm rounded-full px-3 py-1">
+        <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-sm rounded-full px-3 py-1 z-20">
           <span className="text-green-400 font-bold text-sm">{score ? `${score}/10` : 'N/A'}</span>
         </div>
       </div>
@@ -28,7 +39,7 @@ const AnimeCard = ({ anime, onAddToList, onOpen, showAddButton = true, className
         <h3 className="text-xl font-bold text-white mb-2 line-clamp-2">{title}</h3>
       </div>
 
-      {/* Add to My List Button */}
+      {/* Buttons */}
       <div className="p-4 pt-0 flex flex-col gap-2 mt-auto">
         {showAddButton && (
           <Button

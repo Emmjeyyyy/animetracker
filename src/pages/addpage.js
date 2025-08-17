@@ -1,4 +1,4 @@
-//        NOT USED
+
 import { useState } from 'react';
 import { addDoc, collection, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';

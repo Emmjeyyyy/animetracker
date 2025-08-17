@@ -57,23 +57,6 @@ const JikanApiService = {
   },
 
   /**
-   * Get Anime Recommendations
-   */
-  async getAnimeRecommendations() {
-    const recommendations = await this.fetchJson("/recommendations/anime");
-    // Extract unique anime entries from recommendations
-    const uniqueAnime = new Set();
-    const processedRecommendations = recommendations
-      .flatMap(rec => [rec.entry[0], rec.entry[1]]) // Get both entries from each recommendation
-      .filter(anime => {
-        if (!anime || uniqueAnime.has(anime.mal_id)) return false;
-        uniqueAnime.add(anime.mal_id);
-        return true;
-      });
-    return processedRecommendations;
-  },
-
-  /**
    * Get Random Anime (using Jikan's random endpoint)
    * @param {number} count
    */

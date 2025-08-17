@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Addpage from './addpage';
 import { useParams, useNavigate } from 'react-router-dom';
-import JikanApiService from '../services/jikanApi';
 
 const AnimeDetails = () => {
   const { id } = useParams();
@@ -37,7 +36,13 @@ const AnimeDetails = () => {
     <div className="max-w-6xl mx-auto px-6 py-10 text-white">
       {/* Back Arrow Button */}
       <button
-        onClick={() => navigate('/')}
+        onClick={() => {
+          if (window.history.length > 2) {
+            navigate(-1);
+          } else {
+            navigate('/'); // fallback
+          }
+        }}
         className="mb-6 p-2 bg-[#39d353] hover:bg-green-400 rounded-full transition flex items-center justify-center"
       >
         <svg
@@ -74,16 +79,17 @@ const AnimeDetails = () => {
           >
             View on MyAnimeList
           </a>
-      {/* Add Anime Modal */}
-      {showAddModal && (
-        <Addpage
-          anime={anime.title}
-          image={anime.images?.jpg?.large_image_url}
-          maxEpisodes={anime.episodes}
-          isAiring={anime.status === 'Currently Airing' || anime.status === 'Finished Airing'}
-          onClose={() => setShowAddModal(false)}
-        />
-      )}
+
+          {/* Add Anime Modal */}
+          {showAddModal && (
+            <Addpage
+              anime={anime.title}
+              image={anime.images?.jpg?.large_image_url}
+              maxEpisodes={anime.episodes}
+              isAiring={anime.status === 'Currently Airing' || anime.status === 'Finished Airing'}
+              onClose={() => setShowAddModal(false)}
+            />
+          )}
         </div>
 
         {/* Info */}
@@ -111,14 +117,41 @@ const AnimeDetails = () => {
               <h3 className="font-semibold text-lg mb-2">Genres</h3>
               <div className="flex flex-wrap gap-2">
                 {anime.genres.map((genre) => (
-                  <span 
-                    key={genre.mal_id} 
+                  <span
+                    key={genre.mal_id}
                     className="px-3 py-1 bg-gray-700 rounded-full text-sm"
                   >
                     {genre.name}
                   </span>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Embedded YouTube Trailer */}
+          {(anime.trailer?.embed_url || anime.trailer?.youtube_id) && (
+            <div className="mt-8">
+              <h3 className="font-semibold text-3xl mb-2">Trailer</h3>
+              <div className="relative w-full pt-[50%] rounded-xl overflow-hidden shadow-lg">
+                <iframe
+                  className="absolute top-0 left-0 w-full h-full"
+                  src={`${anime.trailer?.embed_url || `https://www.youtube.com/embed/${anime.trailer.youtube_id}?rel=0&modestbranding=1`}`}
+                  title={`${anime.title} Trailer`}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  loading="lazy"
+                  allowFullScreen
+                ></iframe>
+              </div>
+              <a
+                href={anime.trailer?.url || (anime.trailer?.youtube_id ? `https://youtu.be/${anime.trailer.youtube_id}` : '#')}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block mt-3 text-[#39d353] hover:underline"
+              >
+                Watch on YouTube
+              </a>
             </div>
           )}
         </div>
