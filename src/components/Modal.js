@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react';import ReactDOM from 'react-dom';
 import Button from './Button';
 
 const Modal = ({ 
@@ -20,12 +20,13 @@ const Modal = ({
     full: 'max-w-full mx-4'
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-      {/* Only render children, no inner panel */}
+  const overlay = (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[9999]">
       {children}
     </div>
   );
+
+  return ReactDOM.createPortal(overlay, document.body);
 };
 
 export default Modal; 

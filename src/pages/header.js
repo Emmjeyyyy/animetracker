@@ -76,6 +76,12 @@ const HeaderPage = () => {
             >
               Schedules
             </Link>
+            <Link
+              to="/random"
+              className="text-white border border-green-500/0 hover:border-green-500 px-4 py-2 rounded-lg transition-all"
+            >
+              Random
+            </Link>
           </nav>
 
           {/* User Info & Mobile Button */}
@@ -126,6 +132,13 @@ const HeaderPage = () => {
                 className="text-white border border-green-500/0 hover:border-green-500 text-center py-2 rounded-lg transition-all"
               >
                 Schedules
+              </Link>
+              <Link
+                to="/random"
+                onClick={toggleMobileMenu}
+                className="text-white border border-green-500/0 hover:border-green-500 text-center py-2 rounded-lg transition-all"
+              >
+                Random
               </Link>
               <div className="border-t border-green-500/40 pt-2">
                 <p className="text-white/60 text-sm text-center mb-2 truncate">{email}</p>

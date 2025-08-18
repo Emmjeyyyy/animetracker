@@ -1,24 +1,18 @@
-
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
 import { addDoc, collection, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
-
-
 const Addpage = ({ onClose, anime, image }) => {
   const [status, setStatus] = useState('Watching');
   const [epWatch, setEpWatch] = useState(0);
   const [start, setStart] = useState('');
   const [finish, setFinish] = useState('');
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
-
   const curruser = auth.currentUser.uid;
   const collectionRef = collection(db, curruser);
-
   const showNotification = (message, type = 'success') => {
     setNotification({ show: true, message, type });
     setTimeout(() => setNotification({ show: false, message: '', type }), 3000);
   };
-
   const addAnime = async () => {
     try {
       const user = auth.currentUser;
@@ -47,7 +41,12 @@ const Addpage = ({ onClose, anime, image }) => {
       showNotification('Error adding anime', 'error');
     }
   };
-
+   useEffect(() => {
+    document.body.style.overflow = 'hidden'; // disable scroll
+    return () => {
+      document.body.style.overflow = 'auto'; // restore scroll when modal closes
+    };
+  }, []);
   return (
     <div className="fixed top-0 left-0 w-full h-full flex justify-center items-center bg-black bg-opacity-80 z-50 font-sans">
       {/* Notification Toast */}
@@ -59,7 +58,6 @@ const Addpage = ({ onClose, anime, image }) => {
       <div className="bg-[#161b22] border-2 border-green-500 p-8 rounded-2xl flex flex-col w-[400px] min-h-[500px] shadow-2xl">
         <h2 className="text-3xl font-bold mb-6 text-green-400 text-center">Add Anime</h2>
         <p className="mb-6 text-lg text-green-300 text-center">{anime}</p>
-
         <div className="mb-4">
           <label className="block text-green-400 font-semibold mb-2">Status</label>
           <select
@@ -74,7 +72,6 @@ const Addpage = ({ onClose, anime, image }) => {
             <option value="Plan to Watch">Plan to Watch</option>
           </select>
         </div>
-
         <div className="mb-4">
           <label className="block text-green-400 font-semibold mb-2">Episodes Watched</label>
           <input
@@ -85,7 +82,6 @@ const Addpage = ({ onClose, anime, image }) => {
             className="w-full p-2 rounded-lg border border-green-500 bg-[#0d1117] text-green-300 focus:outline-none focus:ring-2 focus:ring-green-400"
           />
         </div>
-
         <div className="mb-4">
           <label className="block text-green-400 font-semibold mb-2">Start Date</label>
           <input
@@ -95,7 +91,6 @@ const Addpage = ({ onClose, anime, image }) => {
             className="w-full p-2 rounded-lg border border-green-500 bg-[#0d1117] text-green-300 focus:outline-none focus:ring-2 focus:ring-green-400"
           />
         </div>
-
         <div className="mb-6">
           <label className="block text-green-400 font-semibold mb-2">Finish Date</label>
           <input
@@ -105,7 +100,6 @@ const Addpage = ({ onClose, anime, image }) => {
             className="w-full p-2 rounded-lg border border-green-500 bg-[#0d1117] text-green-300 focus:outline-none focus:ring-2 focus:ring-green-400"
           />
         </div>
-
         <div className="flex justify-end gap-3 mt-auto">
           <button
             onClick={addAnime}
@@ -124,5 +118,4 @@ const Addpage = ({ onClose, anime, image }) => {
     </div>
   );
 };
-
 export default Addpage;

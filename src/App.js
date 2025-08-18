@@ -6,6 +6,7 @@ import Mylistpage from './pages/mylistpage';
 import Signuppage from './pages/signuppage';
 import AnimeDetails from './pages/AnimeDetails'; // ✅ new details page
 import AnimeSchedule from './components/AnimeSchedule';
+import RandomPage from './pages/RandomPage';
 import { Routes, Route } from 'react-router-dom';
 
 function App() {
@@ -57,6 +58,16 @@ function App() {
             <>
               <HeaderPage />
               <AnimeSchedule />
+            </>
+          }
+        />
+        {/* Random Page */}
+        <Route 
+          path='/random' 
+          element={
+            <>
+              <HeaderPage />
+              <RandomPage />
             </>
           }
         />
