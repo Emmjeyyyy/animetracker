@@ -157,9 +157,14 @@ const Mylistpage = () => {
 
         <div className="min-h-[300px] bg-[#161b22] rounded-2xl p-6 shadow-lg border border-green-500/50">
           {isLoading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="spinner w-12 h-12 border-4 border-t-green-400 border-green-900 rounded-full animate-spin"></div>
-              <span className="ml-4 text-green-300">Loading your anime list...</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-fr">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="bg-[#0f141a] rounded-2xl p-4 border border-green-500/20 animate-pulse">
+                  <div className="w-full h-48 bg-gray-800 rounded-xl mb-4"></div>
+                  <div className="h-5 bg-gray-800 rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-gray-800 rounded w-1/2"></div>
+                </div>
+              ))}
             </div>
           ) : animelist.length === 0 ? (
             <EmptyState
@@ -186,7 +191,6 @@ const Mylistpage = () => {
                     key={anime.id}
                     anime={anime}
                     onEdit={toggleEditPopup}
-                    onDelete={deleteAnime}
                     onAddToList={handleAddToList}
                   />
                 ))}
@@ -239,6 +243,11 @@ const Mylistpage = () => {
           maxEpisodes={editingAnime && editingAnime.episodes}
           onSubmit={editAnime}
           onCancel={() => {
+            setIsEditPopupOpen(false);
+            setEditingAnime(null);
+          }}
+          onDelete={async (animeId) => {
+            await deleteAnime(animeId);
             setIsEditPopupOpen(false);
             setEditingAnime(null);
           }}

@@ -36,10 +36,23 @@ const RandomPage = () => {
         return json.data;
       });
       const results = await Promise.all(promises);
+      // filter out anime that have not yet aired
+      const hasAired = (a) => {
+        if (!a) return false;
+        const status = (a.status || '').toLowerCase();
+        if (status === 'not yet aired' || status === 'upcoming') return false;
+        const from = a.aired?.from;
+        if (from) {
+          const t = Date.parse(from);
+          if (!Number.isNaN(t) && t > Date.now()) return false;
+        }
+        return true;
+      };
+      const filtered = results.filter(hasAired);
       // de-duplicate by mal_id
       const uniq = [];
       const seen = new Set();
-      for (const a of results) {
+      for (const a of filtered) {
         if (a && !seen.has(a.mal_id)) {
           seen.add(a.mal_id);
           uniq.push(a);
@@ -93,9 +106,14 @@ const RandomPage = () => {
   const content = useMemo(() => {
     if (loading) {
       return (
-        <div className="flex flex-col items-center justify-center py-16">
-          <div className="spinner w-12 h-12 border-4 border-t-[#39d353] border-gray-600 rounded-full animate-spin"></div>
-          <span className="mt-4 text-gray-300">Loading random anime...</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 auto-rows-fr py-6">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="bg-[#161b22] rounded-2xl p-4 border border-[#39d353]/20 animate-pulse">
+              <div className="w-full h-48 bg-gray-700 rounded-xl mb-4"></div>
+              <div className="h-5 bg-gray-700 rounded w-3/4 mb-2"></div>
+              <div className="h-4 bg-gray-700 rounded w-1/2"></div>
+            </div>
+          ))}
         </div>
       );
     }

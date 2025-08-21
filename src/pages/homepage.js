@@ -264,9 +264,14 @@ const Homepage = () => {
           {/* MAIN FEED */}
           <div className="xl:col-span-3">
             {isLoading ? (
-              <div className="flex justify-center items-center h-64">
-                <div className="spinner w-12 h-12 border-4 border-t-[#39d353] border-gray-600 rounded-full animate-spin"></div>
-                <span className="ml-4 text-gray-300">Loading anime...</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
+                {Array.from({ length: 12 }).map((_, idx) => (
+                  <div key={idx} className="bg-[#161b22] rounded-2xl p-4 border border-[#39d353]/20 animate-pulse">
+                    <div className="w-full h-48 bg-gray-700 rounded-xl mb-4"></div>
+                    <div className="h-5 bg-gray-700 rounded w-3/4 mb-2"></div>
+                    <div className="h-4 bg-gray-700 rounded w-1/2"></div>
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">

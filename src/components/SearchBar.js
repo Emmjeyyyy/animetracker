@@ -105,10 +105,10 @@ const SearchBar = ({ placeholder = "Search for anime..." }) => {
           </svg>
         </div>
 
-        {/* Loading Spinner */}
+        {/* Inline loading placeholder instead of spinner */}
         {isLoading && (
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-            <div className="spinner w-5 h-5"></div>
+            <div className="h-4 w-12 bg-gray-600 rounded animate-pulse"></div>
           </div>
         )}
       </div>

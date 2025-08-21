@@ -90,9 +90,14 @@ const AnimeSchedule = () => {
     <div className="max-w-7xl mx-auto p-4">
       <h2 className="text-3xl font-bold text-[#39d353] mb-6 text-center">Currently Airing Anime</h2>
       {loading ? (
-        <div className="flex justify-center items-center h-32">
-          <div className="spinner w-8 h-8 border-4 border-t-[#39d353] border-gray-600 rounded-full animate-spin"></div>
-          <span className="ml-3 text-gray-300 text-lg">Loading anime...</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="bg-[#161b22] rounded-xl border border-[#39d353]/30 p-4 animate-pulse">
+              <div className="w-full h-48 bg-gray-700 rounded-lg mb-3"></div>
+              <div className="h-5 bg-gray-700 rounded w-3/4 mb-2"></div>
+              <div className="h-4 bg-gray-700 rounded w-1/2"></div>
+            </div>
+          ))}
         </div>
       ) : error ? (
         <div className="text-center text-red-400 py-8">{error}</div>

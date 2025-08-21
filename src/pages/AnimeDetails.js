@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Addpage from './addpage';
 import { useParams, useNavigate } from 'react-router-dom';
 
@@ -8,6 +8,11 @@ const AnimeDetails = () => {
   const [anime, setAnime] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [characters, setCharacters] = useState([]);
+  const [charsLoading, setCharsLoading] = useState(true);
+  const [charsError, setCharsError] = useState('');
+  const [charPage, setCharPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   useEffect(() => {
     const fetchAnime = async () => {
@@ -24,8 +29,88 @@ const AnimeDetails = () => {
     fetchAnime();
   }, [id]);
 
+  useEffect(() => {
+    const fetchCharacters = async () => {
+      setCharsLoading(true);
+      setCharsError('');
+      try {
+        const res = await fetch(`https://api.jikan.moe/v4/anime/${id}/characters`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const items = Array.isArray(json?.data) ? json.data : [];
+        const mapped = items.map((item) => ({
+          id: item.character?.mal_id,
+          name: item.character?.name || 'Unknown',
+          image: item.character?.images?.jpg?.image_url || '',
+          role: item.role || '',
+          url: item.character?.url || '#',
+          voiceActor:
+            (item.voice_actors || []).find((va) => va.language === 'Japanese') ||
+            (item.voice_actors && item.voice_actors[0]) ||
+            null,
+        }));
+        setCharacters(mapped);
+      } catch (e) {
+        console.error('Error fetching characters:', e);
+        setCharsError('Failed to load characters.');
+        setCharacters([]);
+      } finally {
+        setCharsLoading(false);
+      }
+    };
+
+    fetchCharacters();
+  }, [id]);
+
+  // pagination for characters
+  useEffect(() => {
+    setCharPage(1);
+  }, [id]);
+
+  const totalCharPages = useMemo(
+    () => Math.max(1, Math.ceil(characters.length / PAGE_SIZE)),
+    [characters.length]
+  );
+
+  useEffect(() => {
+    if (charPage > totalCharPages) setCharPage(totalCharPages);
+  }, [charPage, totalCharPages]);
+
+  const pagedCharacters = useMemo(() => {
+    const start = (charPage - 1) * PAGE_SIZE;
+    return characters.slice(start, start + PAGE_SIZE);
+  }, [characters, charPage]);
+
   if (loading) {
-    return <div className="text-center text-gray-400">Loading anime details...</div>;
+    return (
+      <div className="max-w-6xl mx-auto px-6 py-10">
+        <div className="flex flex-col md:flex-row gap-8 animate-pulse">
+          <div className="flex-shrink-0">
+            <div className="w-64 h-96 bg-gray-700 rounded-2xl"></div>
+            <div className="mt-6 h-10 bg-gray-700 rounded-lg w-full"></div>
+            <div className="mt-4 h-10 bg-gray-800 rounded-lg w-full"></div>
+          </div>
+          <div className="flex-1">
+            <div className="h-8 bg-gray-700 rounded w-2/3 mb-3"></div>
+            <div className="h-6 bg-gray-700 rounded w-1/2 mb-6"></div>
+            <div className="space-y-2 mb-6">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-4 bg-gray-700 rounded w-full"></div>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-4 bg-gray-700 rounded w-3/4"></div>
+              ))}
+            </div>
+            <div className="mt-8">
+              <div className="h-7 bg-gray-700 rounded w-32 mb-3"></div>
+              <div className="w-full h-48 bg-gray-800 rounded-xl"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!anime) {
@@ -128,7 +213,8 @@ const AnimeDetails = () => {
             </div>
           )}
 
-          {/* Embedded YouTube Trailer */}
+          
+          {/* Trailer */}
           {(anime.trailer?.embed_url || anime.trailer?.youtube_id) && (
             <div className="mt-8">
               <h3 className="font-semibold text-3xl mb-2">Trailer</h3>
@@ -154,7 +240,70 @@ const AnimeDetails = () => {
               </a>
             </div>
           )}
-        </div>
+
+          {/* Characters */}
+          <div className="mt-8">
+            <h3 className="font-semibold text-3xl mb-2">Characters</h3>
+            {charsLoading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <div key={i} className="bg-[#161b22] rounded-xl p-3 border border-green-400/20 animate-pulse">
+                    <div className="w-full h-32 bg-gray-800 rounded mb-3"></div>
+                    <div className="h-4 bg-gray-800 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-800 rounded w-1/2"></div>
+                  </div>
+                ))}
+              </div>
+            ) : charsError ? (
+              <p className="text-red-400">{charsError}</p>
+            ) : characters.length > 0 ? (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                  {pagedCharacters.map((ch) => (
+                    <div key={ch.id || ch.name} className="bg-[#161b22] rounded-xl p-3 border border-green-400/20 hover:border-green-400/40 transition">
+                      <a href={ch.url} target="_blank" rel="noopener noreferrer">
+                        <img
+                          src={ch.image}
+                          alt={ch.name}
+                          className="w-full h-40 object-cover rounded mb-3"
+                        />
+                      </a>
+                      <a href={ch.url} target="_blank" rel="noopener noreferrer" className="block">
+                        <h4 className="text-white font-semibold text-sm line-clamp-2">{ch.name}</h4>
+                      </a>
+                      <p className="text-gray-400 text-xs">{ch.role}</p>
+                      {ch.voiceActor && (
+                        <p className="text-gray-500 text-xs mt-1">VA: {ch.voiceActor.person?.name}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {characters.length > PAGE_SIZE && (
+                  <div className="mt-4 flex items-center justify-center gap-4">
+                    <button
+                      onClick={() => setCharPage((p) => Math.max(1, p - 1))}
+                      disabled={charPage === 1}
+                      className="px-4 py-2 rounded-lg bg-gray-800 text-gray-300 border border-gray-600 hover:bg-gray-700 disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-green-400 font-bold">Page {charPage} of {totalCharPages}</span>
+                    <button
+                      onClick={() => setCharPage((p) => Math.min(totalCharPages, p + 1))}
+                      disabled={charPage === totalCharPages}
+                      className="px-4 py-2 rounded-lg bg-[#39d353] text-white border border-green-400 hover:bg-green-500 disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-gray-400">No characters available.</p>
+            )}
+          </div>
+
+                  </div>
       </div>
     </div>
   );

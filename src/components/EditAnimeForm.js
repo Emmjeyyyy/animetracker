@@ -3,7 +3,7 @@ import Input from './Input';
 import Select from './Select';
 import Button from './Button';
 
-const EditAnimeForm = ({ anime, onSubmit, onCancel, maxEpisodes = null }) => {
+const EditAnimeForm = ({ anime, onSubmit, onCancel, onDelete, maxEpisodes = null }) => {
   const [formData, setFormData] = useState({
     status: '',
     epWatch: 0,
@@ -103,6 +103,17 @@ const EditAnimeForm = ({ anime, onSubmit, onCancel, maxEpisodes = null }) => {
           className="bg-gray-800 hover:bg-gray-700 text-green-300 font-bold border-2 border-green-400"
         >
           Cancel
+        </Button>
+      </div>
+      <div className="pt-2">
+        <Button 
+          type="button"
+          variant="danger"
+          onClick={() => onDelete && onDelete(anime.id)}
+          fullWidth
+          className="bg-red-700 hover:bg-red-600 text-white font-bold border-2 border-red-400"
+        >
+          Delete Anime
         </Button>
       </div>
     </form>
