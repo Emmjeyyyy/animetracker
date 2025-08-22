@@ -72,8 +72,8 @@ const Loginpage = () => {
         }}
       />
       <div className="relative z-10 w-full max-w-2xl mx-auto px-6">
-        <div className="relative rounded-2xl p-[1px] bg-gradient-to-br from-green-500/40 via-emerald-400/30 to-green-300/20 shadow-2xl">
-          <div className="bg-gradient-to-br from-[#0f172a]/90 to-[#0b1220]/90 rounded-2xl p-10 md:p-12 border border-green-400/20 flex flex-col gap-6">
+        <div className="relative rounded-2xl p-[1px] w-[430px] bg-gradient-to-br from-green-500/40 via-emerald-400/30 to-green-300/20 shadow-2xl">
+          <div className="bg-gradient-to-br h-[704px] from-[#0f172a]/90 to-[#0b1220]/90 rounded-2xl p-10 md:p-12 border border-green-400/20 flex justify-center flex-col gap-6">
             {/* Header */}
             <div className="text-center mb-4">
               <div className="flex justify-center mb-4">
